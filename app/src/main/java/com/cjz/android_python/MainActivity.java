@@ -1,70 +1,108 @@
 package com.cjz.android_python;
 
-import androidx.appcompat.app.AppCompatActivity;
-
 import android.os.Bundle;
 import android.util.Log;
+import android.view.KeyEvent;
+import android.view.View;
+import android.view.inputmethod.EditorInfo;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ImageView;
+import android.widget.TextView;
+import android.widget.Toast;
 
-import com.chaquo.python.Kwarg;
 import com.chaquo.python.PyObject;
 import com.chaquo.python.Python;
-import com.chaquo.python.android.AndroidPlatform;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.regex.Pattern;
 
-public class MainActivity extends AppCompatActivity {
-    static final String TAG = "PythonOnAndroid";
+public class MainActivity extends BaseActivity implements View.OnClickListener {
+
+    private ImageView mBack;
+    private TextView mHead;
+    private EditText mEtIp;
+    private String ip = null;
+    private TextView mTvIp;
+    private TextView mTvLocation;
+    private TextView mTvOperator;
+    private Button mBnQuery;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        hideStatusBarNavigationBar();
         setContentView(R.layout.activity_main);
-        callPythonCode();
-    }
-
-    // 初始化Python环境
-    void initPython() {
-        if (!Python.isStarted()) {
-            Python.start(new AndroidPlatform(this));
-        }
+        initView();
+        initPython(this);
     }
 
     // 调用python代码
     void callPythonCode() {
         Python py = Python.getInstance();
-        // 调用hello.py模块中的greet函数，并传一个参数
-        // 等价用法：py.getModule("hello").get("greet").call("Android");
-        //py.getModule("hello").callAttr("main");
-        py.getModule("ip").call();
+        PyObject pyObject = py.getModule("ip").callAttr("setIP", ip);
+        String str = pyObject.toString();
+        if (BuildConfig.DEBUG) Log.d("MainActivity", str);
+        String[] split = str.split(":");
+        for (int i = 0; i < split.length; i++) {
+            tvs[i].setText(tips[i] + split[i]);
+        }
+        int j = tips.length - split.length;
+        for (int i = 0; i < j; i++) {
+            tvs[split.length + i].setText(tips[split.length + i]);
+        }
+        Toast.makeText(this, "IP地址信息查询成功", Toast.LENGTH_SHORT).show();
+    }
 
-        /*// 调用python内建函数help()，输出了帮助信息
-        py.getBuiltins().get("help").call();
+    private String[] tips = {"IP地址：", "归属地：", "运营商："};
 
-        PyObject obj1 = py.getModule("hello").callAttr("add", 2, 3);
-        // 将Python返回值换为Java中的Integer类型
-        Integer sum = obj1.toJava(Integer.class);
-        Log.d(TAG, "add = " + sum.toString());
+    private void initView() {
+        mBack = (ImageView) findViewById(R.id.back);
+        mBack.setVisibility(View.GONE);
+        mHead = (TextView) findViewById(R.id.head);
+        mHead.setText("IP地址信息查询");
+        mEtIp = (EditText) findViewById(R.id.et_ip);
+        mEtIp.setOnEditorActionListener(new TextView.OnEditorActionListener() {
+            @Override
+            public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
+                if (actionId == EditorInfo.IME_ACTION_SEND || (event != null && event.getKeyCode() == KeyEvent.KEYCODE_ENTER)) {
+                    ip = mEtIp.getText().toString().trim();
+                    if (Pattern.matches(IP, ip)) {
+                        callPythonCode();
+                        hideKeyBoard(mEtIp);
+                    } else {
+                        Toast.makeText(MainActivity.this, "IPv4地址格式错误", Toast.LENGTH_SHORT).show();
+                    }
+                    return true;
+                }
+                return false;
+            }
+        });
+        mTvIp = (TextView) findViewById(R.id.tv_ip);
+        mTvIp.setSelected(true);
+        mTvLocation = (TextView) findViewById(R.id.tv_location);
+        mTvLocation.setSelected(true);
+        mTvOperator = (TextView) findViewById(R.id.tv_operator);
+        mTvOperator.setSelected(true);
+        mBnQuery = (Button) findViewById(R.id.bn_query);
+        mBnQuery.setOnClickListener(this);
+        tvs = new TextView[]{mTvIp, mTvLocation, mTvOperator};
+    }
 
-        // 调用python函数，命名式传参，等同 sub(10,b=1,c=3)
-        PyObject obj2 = py.getModule("hello").callAttr("sub", 10, new Kwarg("b", 1), new Kwarg("c", 3));
-        Integer result = obj2.toJava(Integer.class);
-        Log.d(TAG, "sub = " + result.toString());
+    TextView[] tvs;
 
-        // 调用Python函数，将返回的Python中的list转为Java的list
-        PyObject obj3 = py.getModule("hello").callAttr("get_list", 10, "xx", 5.6, 'c');
-        List<PyObject> pyList = obj3.asList();
-        Log.d(TAG, "get_list = " + pyList.toString());
-
-        // 将Java的ArrayList对象传入Python中使用
-        List<PyObject> params = new ArrayList<PyObject>();
-        params.add(PyObject.fromJava("alex"));
-        params.add(PyObject.fromJava("bruce"));
-        py.getModule("hello").callAttr("print_list", params);
-
-        // Python中调用Java类
-        PyObject obj4 = py.getModule("hello").callAttr("get_java_bean");
-        JavaBean data = obj4.toJava(JavaBean.class);
-        data.print();*/
+    @Override
+    public void onClick(View v) {
+        switch (v.getId()) {
+            default:
+                break;
+            case R.id.bn_query:
+                ip = mEtIp.getText().toString().trim();
+                if (Pattern.matches(IP, ip)) {
+                    callPythonCode();
+                } else {
+                    Toast.makeText(this, "IPv4地址格式错误", Toast.LENGTH_SHORT).show();
+                }
+                break;
+        }
     }
 }
